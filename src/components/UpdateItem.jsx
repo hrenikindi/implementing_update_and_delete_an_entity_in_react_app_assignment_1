@@ -1,77 +1,76 @@
-import { useEffect, useState } from "react";
-import axios from 'axios';
-import PropTypes from "prop-types";
+import React, { useState, useEffect } from "react";
+import { useParams } from "react-router-dom"; 
 
-const API_URI = `http://${import.meta.env.VITE_API_URI}/doors`;
+const UpdateItem = () => {
+    const { id } = useParams(); 
+    const API_URI = `http://localhost:8000/doors/${id}`;
 
-const UpdateItem = ({ itemId }) => {
     const [item, setItem] = useState(null);
-    const [updatedValue, setUpdatedValue] = useState("");
-    const [updating, setUpdating] = useState(false);
+    const [updatedName, setUpdatedName] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    // Fetch the item on component mount or when itemId changes
     useEffect(() => {
         const fetchItem = async () => {
             try {
-                const response = await axios.get(`${API_URI}/${itemId}`);
-                setItem(response.data);
-                setUpdatedValue(response.data.name); 
+                const response = await fetch(API_URI);
+                if (!response.ok) throw new Error("Failed to fetch item");
+
+                const data = await response.json();
+                setItem(data);
+                setUpdatedName(data.name); 
             } catch (err) {
-                console.log(`Error fetching item: ${err.message}`);
+                setError(err.message);
+            } finally {
+                setLoading(false);
             }
         };
+
         fetchItem();
-    }, [itemId]);
+    }, [id]); 
 
-    // Handle input changes
-    const handleInputChange = (e) => {
-        setUpdatedValue(e.target.value);
+    const handleChange = (e) => {
+        setUpdatedName(e.target.value);
     };
 
-    // Handle item update
     const handleUpdate = async () => {
-        if (!updatedValue.trim()) {
-            alert("Name cannot be empty.");
-            return;
-        }
-
-        setUpdating(true);
         try {
-            const response = await axios.put(`${API_URI}/${itemId}`, {
-                name: updatedValue,
+            const response = await fetch(API_URI, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: updatedName }),
             });
-            setItem(response.data);
+
+            if (!response.ok) throw new Error("Failed to update item");
+
+            const updatedItem = await response.json();
+
+            
             alert("Item updated successfully!");
+
+            
+            setItem(updatedItem);
         } catch (err) {
-            console.log(`Error updating item: ${err.message}`);
-        } finally {
-            setUpdating(false);
+            setError(err.message);
         }
     };
+
+    if (loading) return <p>Loading item...</p>;
+    if (error) return <p style={{ color: "red" }}>Error: {error}</p>;
+    if (!item) return <p>No item found.</p>;
 
     return (
         <div>
             <h2>Update Item</h2>
-            {item && (
-                <div>
-                    <p>Current Name: {item.name}</p>
-                    <input
-                        type="text"
-                        value={updatedValue}
-                        onChange={handleInputChange}
-                        disabled={updating}
-                    />
-                    <button onClick={handleUpdate} disabled={updating}>
-                        {updating ? "Saving..." : "Update"}
-                    </button>
-                </div>
-            )}
+
+
+            <p><strong>Current Item:</strong> {item.name}</p>
+
+            
+            <input type="text" value={updatedName} onChange={handleChange} />
+            <button onClick={handleUpdate}>Update</button>
         </div>
     );
-};
-
-UpdateItem.propTypes = {
-    itemId: PropTypes.string.isRequired,
 };
 
 export default UpdateItem;
